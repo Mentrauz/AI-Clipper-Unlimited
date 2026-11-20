@@ -20,7 +20,7 @@ import re
 # name, words that mean it, tags to put on the post
 GAMES: list[tuple[str, list[str], list[str]]] = [
     ("Grand Theft Auto VI", ["grand theft auto vi", "grand theft auto 6", "gta vi", "gta 6", "gta6"],
-     ["GTA6", "GTA6Game", "ViceCity", "RockstarGames", "GTA6Launch"]),
+     ["GTA6", "GTAVI", "ViceCity", "RockstarGames", "GTA6Launch"]),
     ("Grand Theft Auto V", ["grand theft auto v", "grand theft auto 5", "gta online", "gta v", "gta 5", "gta5", "gtav"],
      ["GTA5", "GTAOnline", "RockstarGames", "GTA5RP"]),
     ("Grand Theft Auto IV", ["grand theft auto iv", "gta 4", "gta4"], ["GTA4", "RockstarGames"]),
@@ -45,6 +45,16 @@ GAMES: list[tuple[str, list[str], list[str]]] = [
     ("PUBG", ["pubg", "playerunknown"], ["PUBG", "BattleRoyale"]),
     ("Grand Theft Auto: San Andreas", ["grand theft auto san andreas", "gta sa"], ["GTA", "SanAndreas"]),
 ]
+
+# What makes a clip in a game, said to the AI in one line. Only for games where it is worth saying.
+_GTA = ("In a GTA game the moments that travel are: glitches and bugs (a car or a body flying off, a character stuck, "
+        "stretched or falling through the map, an NPC doing something impossible), a police chase that gets out of "
+        "hand or ends badly, a crash or an explosion nobody planned, something strange an NPC says or does, a mission "
+        "or a heist failing at the last second, and the first look at a new place, car or secret. The streamer's "
+        "surprise gives them away: \"what\", \"no way\", \"did you see that\", \"this game is broken\", or laughing "
+        "when nobody told a joke. Use the category glitch when the game itself misbehaved.")
+MOMENTS = {"Grand Theft Auto VI": _GTA, "Grand Theft Auto V": _GTA, "Grand Theft Auto IV": _GTA,
+           "Grand Theft Auto: San Andreas": _GTA}
 
 # for a stream whose game nobody can name
 GENERIC = ["Gaming", "Gameplay", "GamingClips", "StreamHighlights"]
@@ -84,6 +94,11 @@ def name_of(game: str | None) -> str:
         if g == _norm(name) or g in {_norm(a) for a in aliases}:
             return name
     return str(game)[:40]
+
+
+def moments_of(game: str | None) -> str:
+    """What to look for in this game, or nothing when there is no note for it."""
+    return MOMENTS.get(name_of(game), "")
 
 
 def tags_of(game: str | None) -> list[str]:

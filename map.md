@@ -182,7 +182,7 @@ The job pipeline and fair queue: saving/loading `job.json`, `_run_job`, re-makin
 - `_own_handle` (375) · `_credit_tag` (388) — "via X · @handle" line on clips
 - `render_one(job, clip, words)` (398) · `_caption_words` (432) · `_wait_for_clips` (453)
 - `_english_part` (478) · `_piece_again` (498) · `_fetch_piece` (519) · `_covers` (545) · `_facecam(job)` (553)
-- **`_run_job(job)` (573)** — the whole pipeline
+- **`_run_job(job)` (573)** — the whole pipeline; moments from every block are collected in `picks`, then `_best_of` chooses across the whole video
 - `more_clips` (825) · `_more_clips` (842) · `_worker` (901) · `_pick_up_after_restart` (939) · `start()` (951)
 
 #### studio/media.py
@@ -229,7 +229,7 @@ Finds the webcam box in a gaming stream from its straight, still border; an opti
 
 #### studio/quality.py
 Finds ad breaks and frozen "be right back" screens from a frame-difference motion map.
-- `motion_map` (32) · `static_ranges` (69) · `static_overlap` (91)
+- `motion_map` (32) · `static_ranges` (69) · `static_overlap` (91) — whole file, or one clip's seconds (`jobs._is_static`)
 
 #### studio/roman.py
 Hindi, Urdu, Cyrillic, Greek and Korean caption text into Roman letters (fallback when the AI doesn't).
@@ -253,7 +253,7 @@ Downloads the ~480 MB speech model on first need. `python -m studio.fetch_model`
 Picks clip-worthy moments and writes their text. Builds prompts, asks the AI via `ai.py`, cleans every answer. Also caption fixes and translation. Video text is untrusted: in through `_safe`, out through `_text`.
 - Prompts: `SCHEMA` (14) · `HEAD` (38) · `RULES` (56) · `GAME_RULES` (101) · `GENERIC_TAGS` (112)
 - Cleaning: `_safe` (117) · `_text` (122) · `_num` (128) · `_fmt` (136) · `_tidy` (141) · `_same_word` (173) · `_overlaps` (179)
-- `make_lines` (183) · `loud_zscore` (207) · `ask_ai(prompt, schema, purpose)` (213) — tries each model with retries
+- `make_lines` (183) — lines with (LOUD)/(SPIKE)/(CHAT) marks · `loud_zscore` (207) · `loud_jumps` · `_reaction` · `LEAD_IN` · `ask_ai(prompt, schema, purpose)` (213) — tries each model with retries
 - `sentence_ends` (236) · `_snap` (248) · `fallback_by_loudness` (275) · `_game_rules` (294)
 - **`find_clips(...)` (303)** — whole video, 15-minute windows · `find_live_clips` (347)
 - `describe` (366) — hook/title/post text for a hand-cut clip · `look_for_facecam(jpeg)` (423)
@@ -310,7 +310,7 @@ Post queue: when each clip goes to which account, per-platform text and tags, ba
 
 #### studio/games.py
 Which game a stream is about, from its title; returns that game's post tags. A hint for copy only.
-- `GAMES` (21) · `GENERIC` (50) · `_ALIASES` (53) · `_norm` (61) · `detect(*texts)` (65) · `name_of` (78) · `tags_of` (89)
+- `GAMES` (21) · `MOMENTS` / `moments_of` — what to look for in a game · `GENERIC` (50) · `_ALIASES` (53) · `_norm` (61) · `detect(*texts)` (65) · `name_of` (78) · `tags_of` (89)
 
 ### Settings, setup and support
 

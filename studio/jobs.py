@@ -12,6 +12,8 @@ import traceback
 import uuid
 from pathlib import Path
 
+import numpy as np
+
 from . import brain, config, creators, ctx, facecam, games, load, media, quality, render, roman, safe, transcribe, usage
 
 class _FairQueue:
@@ -147,7 +149,7 @@ def job_dir(jid) -> Path:
     return Path(_jobs[jid]["dir"])
 
 
-HIDDEN = ("dir", "user", "source_path", "recover")
+HIDDEN = ("dir", "user", "source_path", "recover", "picks")
 
 
 def public(job) -> dict:
@@ -579,6 +581,28 @@ def _fetch_piece(job, clip, full_audio):
         clip.update(status="error", error=f"Could not fetch this part of the video: {safe.friendly(e, 250)}")
 
 
+def _is_static(job, clip) -> bool:
+    """Is most of this clip an ad break, a "be right back" slate or a frozen picture? Only the clip's own seconds
+    are read, from its own piece of the video or from the whole video."""
+    path, off = clip.get("src") or job.get("source_path"), clip.get("src_offset", 0.0) if clip.get("src") else 0.0
+    if not path:
+        return False
+    a, b = clip["start"] - off, clip["end"] - off
+    return quality.static_overlap(a, b, quality.static_ranges(path, start=a, end=b)) > 0.5 * max(1.0, b - a)
+
+
+def _best_of(picks, taken, n) -> list:
+    """The n highest-scored moments from the whole video, none overlapping each other or a clip already made,
+    in the order they happen."""
+    chosen = []
+    for c in sorted(picks, key=lambda c: -c.get("score", 0)):
+        if len(chosen) >= n:
+            break
+        if not brain._overlaps(c["start"], c["end"], chosen + list(taken)):
+            chosen.append(c)
+    return sorted(chosen, key=lambda c: c["start"])
+
+
 BLOCK = 10 * 60         # long videos are transcribed and clipped one block at a time
 PROGRESSIVE_FROM = 20 * 60
 
@@ -612,7 +636,6 @@ def _facecam(job) -> list | None:
 
 
 def _run_job(job):
-    import math
     from concurrent.futures import ThreadPoolExecutor
     d = Path(job["dir"])
     o = job["options"]
@@ -637,7 +660,7 @@ def _run_job(job):
     if resuming:   # after a restart: keep the transcript parts, clips and AI answers already made, and carry on
         _set(job, status="running", stage="Picking up where it stopped", error=None)
     else:
-        _set(job, status="running", stage="Getting the audio", progress=0.03, error=None, clips=[], ai={}, done_blocks=0)
+        _set(job, status="running", stage="Getting the audio", progress=0.03, error=None, clips=[], ai={}, done_blocks=0, picks=[])
     if not transcribe.model_ready() and not transcribe.REMOTE:
         from . import fetch_model
         _set(job, stage="Getting the speech model (one time, about 480 MB)")
@@ -683,6 +706,7 @@ def _run_job(job):
     hi = min(len(audio), int(o["range_end"] * 16000)) if o["range_end"] else len(audio)
     span = (hi - lo) / 16000
     db = media.loudness_per_second(audio[lo:hi])
+    np.save(d / "loud.npy", media.loudness_per_second(audio))     # kept for "more clips", which has no audio to listen to
 
     vlock, vstate = threading.Lock(), {}
 
@@ -713,6 +737,14 @@ def _run_job(job):
         began[clip["id"]] = time.time()
         if src["type"] == "url" and (pieces or not whole_video()):
             _fetch_piece(job, clip, audio)
+        if clip["status"] != "error" and config.SKIP_STATIC and src["type"] == "url" and _is_static(job, clip):
+            # A video from a link is not on this machine when its moments are picked, so the check for ad breaks
+            # and frozen screens is made here, on the clip's own seconds, before any work goes into it.
+            notes.append(f"A clip from {round(clip['start'])}s was left out: it sat in an ad break or a static screen.")
+            with _lock:
+                job["clips"].remove(clip)
+            save(job)
+            return
         if clip["status"] != "error" and clip.get("captions", True) and yt and yt[1].lower().startswith("en"):
             # The clip was found with YouTube's transcript. What is shown on screen comes from our own model,
             # run on just this clip: full punctuation, nothing blanked out, timings to the word.
@@ -796,15 +828,16 @@ def _run_job(job):
         words += [dict(w, s=round(w["s"] + shift, 2), e=round(w["e"] + shift, 2)) for w in bw]
         (d / "words.json").write_text(json.dumps(words), encoding="utf-8")
         _set(job, stage="Finding the best moments" + where, word_count=len(words))
-        left = int(o["max_clips"]) - len(job["clips"])
-        if left <= 0 or len(bw) < 8:
+        if len(bw) < 8:
             job["done_blocks"] = bi + 1
             save(job)
             continue
-        quota = max(1, math.ceil(left / (len(blocks) - bi)))
+        # Every part is asked for as many moments as the whole video wants, and nothing is made yet: the best ones
+        # are chosen across the whole video at the end, so a great half hour gives more clips than a dull one.
         s0 = int((a - lo) / 16000)
         found, ai = brain.find_clips(bw, db[s0: s0 + int((b - a) / 16000) + 1], (b - a) / 16000, job["title"],
-                                     job["uploader"], quota, int(o["min_len"]), int(o["max_len"]), notes.append, game=game)
+                                     job["uploader"], int(o["max_clips"]), int(o["min_len"]), int(o["max_len"]),
+                                     notes.append, game=game)
         tokens += ai.get("tokens", 0)
         model = ai.get("model") or model
         if ai.get("note"):
@@ -822,20 +855,27 @@ def _run_job(job):
                     keep.append(c)
             found = keep
         for c in found:
-            c.update(id=_new_clip_id(job), start=round(c["start"] + shift, 2),
-                     end=round(c["end"] + shift, 2), style=o["style"], layout=o["layout"],
-                     captions=o.get("captions", True), status="queued", version=0)
-            # Only the gameplay layout uses a webcam, so it is only looked for then, and only once: a
-            # stream with no webcam is not looked for again on every clip of it.
-            if o["layout"] in ("gameplay", "blurcam") and face is False:
-                face = _facecam(job)
-            if face:
-                c["facecam"] = face
-            job["clips"].append(c)
-            futures.append((renders.submit(ctx.bind(make), c, list(words)), c))
+            c.update(start=round(c["start"] + shift, 2), end=round(c["end"] + shift, 2))
+        job.setdefault("picks", []).extend(found)     # saved with the job, so a restart keeps what was found
         job["ai"] = {"model": model, "tokens": tokens, "note": "", "log": notes[-5:]}
         job["done_blocks"] = bi + 1       # a restart from here on carries on with the next part
         save(job)
+    picks = job.pop("picks", [])
+    chosen = _best_of(picks, job["clips"], int(o["max_clips"]) - len(job["clips"]))
+    if len(picks) > len(chosen) and len(blocks) > 1:
+        notes.append(f"Chose the best {len(chosen)} of {len(picks)} moments found across the whole video.")
+    for c in chosen:
+        c.update(id=_new_clip_id(job), style=o["style"], layout=o["layout"],
+                 captions=o.get("captions", True), status="queued", version=0)
+        # Only the gameplay layout uses a webcam, so it is only looked for then, and only once: a
+        # stream with no webcam is not looked for again on every clip of it.
+        if o["layout"] in ("gameplay", "blurcam") and face is False:
+            face = _facecam(job)
+        if face:
+            c["facecam"] = face
+        job["clips"].append(c)
+        futures.append((renders.submit(ctx.bind(make), c, list(words)), c))
+    save(job)
     if futures:
         _set(job, stage="Finishing the clips", progress=max(job["progress"], 0.92))
     _wait_for_clips(job, futures, began, renders._max_workers)
@@ -881,7 +921,6 @@ def more_clips(jid, options):
 
 
 def _more_clips(job, opts):
-    import math
     import numpy as np
     token = ctx._uid.set(job["user"])
     d = Path(job["dir"])
@@ -890,6 +929,7 @@ def _more_clips(job, opts):
         o = job["options"] = {**job["options"], "range_start": None, "range_end": None, **opts}
         t0 = time.time()
         words = json.loads((d / "words.json").read_text(encoding="utf-8"))
+        loud = np.load(d / "loud.npy") if (d / "loud.npy").is_file() else None
         game = job.get("game") or ""
         duration = float(job.get("duration") or (words[-1]["e"] if words else 0))
         lo, hi = float(o.get("range_start") or 0), float(o.get("range_end") or duration)
@@ -897,38 +937,33 @@ def _more_clips(job, opts):
         blocks = [(x, min(hi, x + step)) for x in np.arange(lo, hi, step)] or [(lo, hi)]
         want, made, notes, face = int(o["max_clips"]), 0, [], False
         _set(job, status="running", stage="Finding more moments", progress=0.05, error=None)
+        picks = []
         for bi, (a, b) in enumerate(blocks):
-            left = want - made
-            if left <= 0:
-                break
             bw = [dict(w, s=round(w["s"] - a, 2), e=round(w["e"] - a, 2)) for w in words if a <= w["s"] < b]
             if len(bw) < 8:
                 continue
             where = f" (minute {round((a - lo) / 60)} of {round((hi - lo) / 60)})" if len(blocks) > 1 else ""
-            _set(job, stage="Finding more moments" + where, progress=max(job["progress"], 0.05 + 0.9 * (a - lo) / max(1.0, hi - lo)))
-            # the loudness of the original is not kept, so the AI reads the words alone
-            found, ai = brain.find_clips(bw, np.zeros(int(b - a) + 1), b - a, job["title"], job["uploader"],
-                                         max(1, math.ceil(left / (len(blocks) - bi))), int(o["min_len"]), int(o["max_len"]),
+            _set(job, stage="Finding more moments" + where, progress=max(job["progress"], 0.05 + 0.6 * (a - lo) / max(1.0, hi - lo)))
+            # the loudness saved when the video was first clipped; a video from before that was kept has the words alone
+            found, ai = brain.find_clips(bw, loud[int(a): int(b) + 1] if loud is not None else np.zeros(int(b - a) + 1),
+                                         b - a, job["title"], job["uploader"], want, int(o["min_len"]), int(o["max_len"]),
                                          notes.append, game=game)
-            for c in found:
-                s, e = round(c["start"] + a, 2), round(c["end"] + a, 2)
-                if brain._overlaps(s, e, job["clips"]):
-                    continue                           # that moment already has a clip
-                c.update(id=_new_clip_id(job), start=s, end=e, style=o["style"], layout=o["layout"],
-                         captions=o.get("captions", True), status="queued", version=0)
-                if o["layout"] in ("gameplay", "blurcam") and face is False:
-                    face = _facecam(job)
-                if face:
-                    c["facecam"] = face
-                job["clips"].append(c)
-                made += 1
-                _set(job, stage=f"Making clip {made} of {want}")
-                try:
-                    render_one(job, c, words)
-                except Exception as e2:  # noqa: BLE001 - one clip failing does not stop the others
-                    c.update(status="error", error=safe.friendly(e2, 250))
-                if made >= want:
-                    break
+            picks += [dict(c, start=round(c["start"] + a, 2), end=round(c["end"] + a, 2)) for c in found]
+        # the best moments of the whole part, never one that already has a clip
+        for c in _best_of(picks, job["clips"], want):
+            c.update(id=_new_clip_id(job), style=o["style"], layout=o["layout"],
+                     captions=o.get("captions", True), status="queued", version=0)
+            if o["layout"] in ("gameplay", "blurcam") and face is False:
+                face = _facecam(job)
+            if face:
+                c["facecam"] = face
+            job["clips"].append(c)
+            made += 1
+            _set(job, stage=f"Making clip {made} of {want}")
+            try:
+                render_one(job, c, words)
+            except Exception as e2:  # noqa: BLE001 - one clip failing does not stop the others
+                c.update(status="error", error=safe.friendly(e2, 250))
         stage = "Done" if made else "Done, but no new clip-worthy moments were found"
         _set(job, status="done", stage=stage, progress=1.0, took=round(time.time() - t0))
         creators.log(job["creator"], f"{made} more clip{'s' if made != 1 else ''} made from: {job['title']}")

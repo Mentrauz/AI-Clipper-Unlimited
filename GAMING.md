@@ -19,15 +19,20 @@ When the game is known, two things change.
 This stream is Grand Theft Auto VI. Pick the moments that only mean something with that
 game in mind:
 - A play, a death, a jump scare, a glitch, a discovery, or the streamer reacting to one.
+- In a GTA game the moments that travel are: glitches and bugs (a car or a body flying off, ...),
+  a police chase that gets out of hand, a crash nobody planned, a mission failing at the last
+  second, the first look at a new place, car or secret. (`MOMENTS` in `studio/games.py`)
+- In a game the words are often only the reaction: what caused it happened two or three
+  seconds earlier. Set start up to 3 seconds before the first reaction line.
 - The hook is what was said at that moment, or, if nothing was said, the name of what
   happened in two or three words ("1 VS 3", "THE SHOT", "HE GOT ME", "CLUTCH"). Never a
   sentence that needs the game explained.
 - The title names the game when the clip is about it.
-- The hashtags include GTA6, GTA6Game, ViceCity, RockstarGames, GTA6Launch.
+- The hashtags include GTA6, GTAVI, ViceCity, RockstarGames, GTA6Launch.
 ```
 
 **Every post carries the game's tags** (`_tidy` in `studio/brain.py`), whatever
-the AI wrote for itself: `#GTA6`, `#GTA6Game`, `#ViceCity`, `#RockstarGames`,
+the AI wrote for itself: `#GTA6`, `#GTAVI`, `#ViceCity`, `#RockstarGames`,
 `#GTA6Launch` for GTA VI; `#GTA5`, `#GTAOnline`, `#GTA5RP` for GTA V. People
 search for the game, not for "gaming".
 
@@ -122,7 +127,40 @@ Only a sure answer is used. If the webcam is not found, the layout falls back to
 Already covered: `studio/quality.py` finds the stretches of a video where
 nothing moved and drops any clip that sits inside one. On a stream stitched with
 commercials, this is the difference between a clip of the game and a clip of a
-sponsor reading.
+sponsor reading. It is off unless `PEAKCUT_SKIP_STATIC=1`.
+
+An uploaded file is read once, end to end. A video from a link is not on the
+machine when its moments are picked, so each of its clips is checked on its own
+seconds just before it is made (`jobs._is_static`). Live clips are not checked.
+
+## 4b. What the AI is told about the sound
+
+Each transcript line can carry two marks (`make_lines` in `studio/brain.py`):
+
+- **(LOUD)**: louder than the stream usually is. "Usually" is measured from the
+  middle of the levels, so a muted break or dropped audio no longer stretches the
+  scale until shouting stops standing out.
+- **(SPIKE)**: a sudden jump from the ten seconds before: a scream, a crash, a
+  burst of laughter. Music or an engine that stays loud has no jump in it.
+
+Between two moments the AI scored alike, the one with a loud reaction in it is
+taken first. Glitches have their own category (`glitch`).
+
+**The clip starts before the reaction.** On a gaming stream, a start the AI puts
+in the quiet before a reaction line is kept, up to 3 seconds of it
+(`LEAD_IN`): that quiet is the crash the streamer is about to shout about. On a
+talk video the start still goes to the nearest line.
+
+"More clips" on a finished video now hears the same marks: the loudness is saved
+next to the transcript (`loud.npy`).
+
+**The best clips of the whole video, not of each part.** A long video is read in
+10-minute parts. Every part is asked for moments, but nothing is made until the
+last part is read; then the highest-scored moments of the whole video are made
+(`jobs._best_of`). A great half hour gives more clips than a dull one. The cost:
+on a video over 20 minutes the first clip starts only after the whole transcript
+is read. What was found so far is saved with the job, so a restart keeps it.
+"More clips" works the same way.
 
 ## 5. Each platform gets its own text
 
@@ -133,7 +171,7 @@ packaged twice (`posting.package`):
 |---|---|---|
 | title | `yt_title`: about 40 characters show, so the game or streamer comes first | none (only the first caption line shows) |
 | first line | the keyword line, inside the 125 characters a preview shows | `ig_line`: the game, the streamer and what happens; search reads it |
-| hashtags | 5 in the description (3 show above the title), all as tags, plus `#Shorts` | at most 5 (Instagram's limit since December 2025) |
+| hashtags | 5 in the description (3 show above the title), all as tags | at most 5 (Instagram's limit since December 2025) |
 | question | `ask`, for comments | `ask`, for comments and sends (Instagram counts sends heavily) |
 
 Hashtags are the clip's own first, with room kept for two of the game's. Generic

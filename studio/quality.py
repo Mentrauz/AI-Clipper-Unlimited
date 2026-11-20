@@ -29,14 +29,18 @@ _PTS = re.compile(r"pts_time:([0-9.]+)")
 _YAVG = re.compile(r"lavfi\.signalstats\.YAVG=([0-9.]+)")
 
 
-def motion_map(path: str | Path, bucket: float = 2.0) -> list[tuple[float, float]]:
+def motion_map(path: str | Path, bucket: float = 2.0, start: float | None = None,
+               end: float | None = None) -> list[tuple[float, float]]:
     """(time, motion) for every bucket of the video, or nothing if it cannot be read.
 
     Motion is the mean luma difference between consecutive frames: near zero for a
-    frozen screen, high for anything actually moving."""
+    frozen screen, high for anything actually moving. With `start` and `end`, only
+    those seconds are read, and the times are still counted from the start of the file."""
+    part = [] if start is None or end is None else ["-ss", f"{max(0.0, start):.2f}", "-t", f"{max(0.1, end - start):.2f}"]
+    shift = max(0.0, start) if part else 0.0
     try:
         proc = subprocess.run(
-            [_FFMPEG, "-hide_banner", "-loglevel", "error",
+            [_FFMPEG, "-hide_banner", "-loglevel", "error", *part,
              "-i", str(path),
              "-vf", "tblend=all_mode=difference,signalstats,metadata=print:file=-",
              "-an", "-f", "null", "-"],
@@ -63,15 +67,16 @@ def motion_map(path: str | Path, bucket: float = 2.0) -> list[tuple[float, float
     buckets: dict[int, list[float]] = {}
     for t, v in zip(times, vals):
         buckets.setdefault(int(t / bucket), []).append(v)
-    return [(i * bucket, sum(v) / len(v)) for i, v in sorted(buckets.items())]
+    return [(shift + i * bucket, sum(v) / len(v)) for i, v in sorted(buckets.items())]
 
 
 def static_ranges(path: str | Path, bucket: float = 2.0, threshold: float | None = None,
-                  min_seconds: float | None = None) -> list[tuple[float, float]]:
+                  min_seconds: float | None = None, start: float | None = None,
+                  end: float | None = None) -> list[tuple[float, float]]:
     """The stretches that look like an ad break, a slate or a frozen screen."""
     threshold = config.STATIC_THRESHOLD if threshold is None else threshold
     min_seconds = config.STATIC_MIN_SECONDS if min_seconds is None else min_seconds
-    pairs = motion_map(path, bucket)
+    pairs = motion_map(path, bucket, start, end)
     if not pairs:
         return []
     runs: list[tuple[float, float]] = []
