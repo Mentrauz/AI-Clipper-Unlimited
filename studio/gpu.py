@@ -76,7 +76,7 @@ def nvenc() -> dict:
     out = {"ok": False, "problem": "", "fix": []}
     if not card():
         out.update(problem="No NVIDIA graphics card was found in this computer.",
-                   fix=["PeakCut can use NVIDIA cards (GeForce, RTX, Quadro). Other cards, and Intel or AMD graphics, are not supported for this yet.",
+                   fix=["AI Clipper can use NVIDIA cards (GeForce, RTX, Quadro). Other cards, and Intel or AMD graphics, are not supported for this yet.",
                         "If you do have an NVIDIA card, install its driver from nvidia.com/drivers, restart the computer, then press Check again."])
     elif not shutil.which("ffmpeg"):
         out.update(problem="ffmpeg is not installed.", fix=["Install it with: winget install Gyan.FFmpeg"])
@@ -88,7 +88,7 @@ def nvenc() -> dict:
         if "h264_nvenc" not in enc:
             out.update(problem="This copy of ffmpeg was built without NVIDIA support.",
                        fix=["Install the full build: winget install Gyan.FFmpeg (the 'full' build includes NVENC), or download 'full' from gyan.dev/ffmpeg/builds.",
-                            "Restart PeakCut afterwards so it finds the new ffmpeg."])
+                            "Restart AI Clipper afterwards so it finds the new ffmpeg."])
         else:
             try:
                 p = _run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "color=c=black:s=256x256:d=0.2:r=30",
@@ -157,14 +157,14 @@ def speech() -> dict:
             missing.append("cuDNN 9 was not found. Download it from developer.nvidia.com/cudnn and copy its bin folder's files next to the CUDA ones (or add the folder to PATH).")
         if not (_has_dll("cudart64_12.dll", "cudart64_13.dll") and _has_dll("cudnn64_9.dll")):
             missing.append("Or, without NVIDIA's installers: pip install nvidia-cuda-runtime-cu12 nvidia-cublas-cu12 \"nvidia-cudnn-cu12>=9,<10\" "
-                           "nvidia-cufft-cu12 nvidia-curand-cu12 nvidia-cuda-nvrtc-cu12 nvidia-nvjitlink-cu12 into the same Python that runs PeakCut. PeakCut finds those files by itself.")
+                           "nvidia-cufft-cu12 nvidia-curand-cu12 nvidia-cuda-nvrtc-cu12 nvidia-nvjitlink-cu12 into the same Python that runs AI Clipper. AI Clipper finds those files by itself.")
         if missing:
-            out.update(problem="The speech model needs a few things installed first.", fix=missing + ["Restart PeakCut afterwards, then press Check again."])
+            out.update(problem="The speech model needs a few things installed first.", fix=missing + ["Restart AI Clipper afterwards, then press Check again."])
         elif _failed["why"]:
             out.update(problem="Everything is installed, but the speech model did not work on the card, so the processor is writing transcripts instead.",
                        fix=[f"What happened: {_failed['why']}.",
                             f"This usually means the speech library and the card's software do not get along. Try a different +cuda build from {CUDA_WHEELS}, or update the NVIDIA driver.",
-                            "Restart PeakCut afterwards: it tests the card again on the first video."])
+                            "Restart AI Clipper afterwards: it tests the card again on the first video."])
         else:
             out["ok"] = True
     _cache["speech"] = out

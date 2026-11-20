@@ -138,7 +138,7 @@ def package(clip, creator, platform, job=None):
         # the first 125 characters of the description show in previews, so the keyword line goes first
         title = clip.get("yt_title") or clip.get("title") or clip.get("hook") or "Clip"
         desc = clip.get("description", "")
-        body = [first, desc if desc != first else "", clip.get("ask", ""), credit, footer, (hashes + " #Shorts").strip()]
+        body = [first, desc if desc != first else "", clip.get("ask", ""), credit, footer, hashes]
         return title, "\n\n".join(x for x in body if x), (clip.get("hashtags") or [])[:15]
     # Instagram and TikTok show only the first line before "more", and search reads it: keywords go first
     body = [first, clip.get("ask", ""), credit, footer, hashes]
@@ -293,7 +293,7 @@ def overview() -> dict:
 
 def digest_text() -> str:
     o = overview()
-    lines = ["PeakCut daily summary"]
+    lines = ["AI Clipper daily summary"]
     for r in o["creators"]:
         lines.append(f"- {r['name']}: {r['state']}, {r['clips_today']} clips today, {r['posted_today']} posted today, "
                      f"{r['queued']} waiting, {r['failed']} failed, {r['views']} views")

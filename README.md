@@ -3,7 +3,7 @@
 Turn long videos and live streams into captioned vertical clips, ready to post. Free and open source: run it on
 your own computer or server, with your own AI key.
 
-Paste a YouTube, Twitch or Kick link (or upload a file) and PeakCut finds the moments worth clipping, cuts them to
+Paste a YouTube, Twitch or Kick link (or upload a file) and AI Clipper finds the moments worth clipping, cuts them to
 9:16, adds word-by-word captions and a hook, and can post them to your connected accounts. It can also record a
 creator's live stream and clip the highlights while the stream is still running.
 
@@ -24,9 +24,9 @@ creator's live stream and clip the highlights while the stream is still running.
 ## Quick start
 
 You need Python 3.10 or newer and `ffmpeg`. On Windows: `winget install Gyan.FFmpeg`. On a Mac: `brew install ffmpeg`.
-On Linux: `sudo apt install ffmpeg`. PeakCut finds it by itself and tells you in the dashboard if it is missing.
+On Linux: `sudo apt install ffmpeg`. AI Clipper finds it by itself and tells you in the dashboard if it is missing.
 
-Put PeakCut in a short folder that stays put: `C:\peakcut` on Windows, `~/peakcut` on a Mac or Linux. Not inside a
+Put AI Clipper in a short folder that stays put: `C:iclipper` on Windows, `~/aiclipper` on a Mac or Linux. Not inside a
 temporary folder or an AI assistant's workspace: those get cleaned up, and on Windows a folder that deep stops the
 speech model from loading (Windows can't open files whose full path is over 260 characters). If an AI assistant
 installs it for you, it should ask you where to put it first ([AGENTS.md](AGENTS.md) tells it to).
@@ -34,21 +34,21 @@ installs it for you, it should ask you where to put it first ([AGENTS.md](AGENTS
 On Windows:
 
 ```bash
-git clone <this repository> C:\peakcut
+git clone <this repository> C:iclipper
 ```
 
 ```bash
-cd C:\peakcut
+cd C:iclipper
 ```
 
 On a Mac or Linux:
 
 ```bash
-git clone <this repository> ~/peakcut
+git clone <this repository> ~/aiclipper
 ```
 
 ```bash
-cd ~/peakcut
+cd ~/aiclipper
 ```
 
 ```bash
@@ -70,7 +70,7 @@ test** (see [Choose your AI](#choose-your-ai)).
 
 ## Choose your AI
 
-PeakCut needs a chat model that can return JSON. The easy way is in the dashboard: **Settings, AI**. Pick the
+AI Clipper needs a chat model that can return JSON. The easy way is in the dashboard: **Settings, AI**. Pick the
 service, paste your key, press **Find models** to choose from the service's own list, then **Save and test**. The
 key is kept in the data folder on your machine and is never shown again.
 
@@ -135,14 +135,14 @@ they are done. Press **Check again** after adding one.
 | Email, Google sign-in | In `.env`, only when `PEAKCUT_ACCOUNTS=1` |
 
 **YouTube cookies.** In a browser signed in to YouTube, export the cookies for youtube.com with a cookies.txt
-extension and save the file as `cookies.txt` in the PeakCut folder (git ignores it). Then add one line to `.env` and
+extension and save the file as `cookies.txt` in the AI Clipper folder (git ignores it). Then add one line to `.env` and
 restart:
 
 ```ini
-PEAKCUT_YT_COOKIES_FILE=C:\peakcut\cookies.txt
+PEAKCUT_YT_COOKIES_FILE=C:iclipper\cookies.txt
 ```
 
-Or let PeakCut read a browser on the same computer with `PEAKCUT_YT_COOKIES_BROWSER=firefox` (Chrome and Edge usually
+Or let AI Clipper read a browser on the same computer with `PEAKCUT_YT_COOKIES_BROWSER=firefox` (Chrome and Edge usually
 cannot be read while they are open). Cookies are a login: never share the file. They expire after a while; Setup warns
 when the file is over 60 days old.
 
@@ -156,10 +156,10 @@ what is missing when it cannot work.
   `sherpa-onnx` with `+cuda12.cudnn9` in its version, from https://k2-fsa.github.io/sherpa/onnx/cuda.html, plus CUDA 12 and
   cuDNN 9. You can install NVIDIA's own CUDA Toolkit and cuDNN, or just the pip packages `nvidia-cublas-cu12`,
   `nvidia-cudnn-cu12`, `nvidia-cufft-cu12`, `nvidia-curand-cu12`, `nvidia-cuda-runtime-cu12`, `nvidia-cuda-nvrtc-cu12`
-  and `nvidia-nvjitlink-cu12` in the same Python that runs PeakCut: PeakCut finds those files by itself. It then
-  downloads a bigger speech model (about 1.1 GB, once). Restart PeakCut after changing it.
+  and `nvidia-nvjitlink-cu12` in the same Python that runs AI Clipper: AI Clipper finds those files by itself. It then
+  downloads a bigger speech model (about 1.1 GB, once). Restart AI Clipper after changing it.
 
-PeakCut tests the card on the first video: it transcribes the short sample that comes with the model. If the card
+AI Clipper tests the card on the first video: it transcribes the short sample that comes with the model. If the card
 fails to start or writes no words, the processor takes over for that run and **Settings, Speed** says why, so you
 never get empty transcripts. The processor is already quick on most computers (the compact speech model is often
 faster than the card for a single video), so turn this on mainly for servers that transcribe many videos at once. To
@@ -169,7 +169,7 @@ use a separate machine with a card, see [Deploy](#deploy).
 
 This only matters with accounts switched on (`PEAKCUT_ACCOUNTS=1`); without them you are the owner and can do
 everything. An account is an admin only when the database says so. No email address is special in the code and no web request
-can change a role. Do it on the machine that runs PeakCut:
+can change a role. Do it on the machine that runs AI Clipper:
 
 ```bash
 python -m studio.admin grant you@example.com
@@ -194,18 +194,18 @@ assistants.
 
 ## Where your videos and clips are kept
 
-Everything PeakCut keeps is in one folder: videos, clips, recordings, creators, settings and the speech model. By
-default it is the `data` folder inside PeakCut. **Settings, Storage** shows the folder and how much room its drive
-has, opens it in one click, and lets you move it to another drive: choose the new folder, and PeakCut moves
-everything there the next time it starts. If the drive is nearly full, PeakCut says so and stops taking new videos
+Everything AI Clipper keeps is in one folder: videos, clips, recordings, creators, settings and the speech model. By
+default it is the `data` folder inside AI Clipper. **Settings, Storage** shows the folder and how much room its drive
+has, opens it in one click, and lets you move it to another drive: choose the new folder, and AI Clipper moves
+everything there the next time it starts. If the drive is nearly full, AI Clipper says so and stops taking new videos
 until there is room. (`PEAKCUT_DATA` in `.env` still works and takes priority.)
 
 ## Updating
 
-PeakCut checks GitHub once a minute while it runs. When a newer version is out, the dashboard shows a notice
+AI Clipper checks GitHub once a minute while it runs. When a newer version is out, the dashboard shows a notice
 within a minute or two (no restart needed), with what changed
 and how to update: ask your AI coding assistant to do it (the notice has a sentence to paste), or run
-`git pull && pip install -r requirements.txt` in the PeakCut folder and restart it (with Docker:
+`git pull && pip install -r requirements.txt` in the AI Clipper folder and restart it (with Docker:
 `git pull && docker compose up -d --build`). Your `.env`, keys and clips are not touched. Only the two commit ids
 are sent to GitHub; set `PEAKCUT_UPDATE_CHECK=0` to turn the check off.
 
@@ -238,7 +238,7 @@ queue tests against it, then removes it. It needs no keys and never touches real
 
 ## Security
 
-- With sign-in off, PeakCut listens on this computer only (`127.0.0.1`), refuses changes sent by other websites,
+- With sign-in off, AI Clipper listens on this computer only (`127.0.0.1`), refuses changes sent by other websites,
   and only answers to its own address. Do not expose it to the internet that way: turn accounts on.
 - Passwords are stored only as salted scrypt hashes. Sessions are random tokens stored hashed; cookies are HTTP-only.
 - Every route works out who is asking from the session, never from the request, so users only reach their own data.
@@ -265,5 +265,5 @@ them with `PEAKCUT_REPO_URL`, `PEAKCUT_FOLLOW_URL` and `PEAKCUT_UPDATE_REPO` in 
 
 ## Licence
 
-[MIT](LICENSE), copyright PeakCut contributors and Soumya Singh. Caption fonts in `studio/fonts/` (Anton, Archivo Black, Poppins) are under the SIL Open Font
+[MIT](LICENSE), copyright AI Clipper contributors and Soumya Singh. Caption fonts in `studio/fonts/` (Anton, Archivo Black, Poppins) are under the SIL Open Font
 License; the licence texts are in the same folder.

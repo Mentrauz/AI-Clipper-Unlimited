@@ -1,11 +1,11 @@
-"""What has to be added by hand on this computer before PeakCut works fully.
+"""What has to be added by hand on this computer before AI Clipper works fully.
 
 Keys, cookies and settings are kept out of the code on purpose (they are listed in .gitignore), so a fresh copy of
-PeakCut starts without them. This list says, in one place, which of them are still missing and how to add each one.
+AI Clipper starts without them. This list says, in one place, which of them are still missing and how to add each one.
 It is shown in Settings, Setup, and the ones that matter show up as next steps on the home page until they are done.
 
 Each item: {key, title, need, done, status, steps, tab}
-  need:  "required" (PeakCut cannot work without it), "recommended" (works, but worse) or "optional"
+  need:  "required" (AI Clipper cannot work without it), "recommended" (works, but worse) or "optional"
   tab:   the Settings section where it is set from the page, or None when it is set in the .env file
 """
 import time
@@ -13,7 +13,7 @@ from pathlib import Path
 
 from . import config
 
-ENV_FILE = ".env file in the PeakCut folder"
+ENV_FILE = ".env file in the AI Clipper folder"
 
 
 def _ffmpeg() -> dict:
@@ -21,7 +21,7 @@ def _ffmpeg() -> dict:
     gone = tools.missing()
     return {"key": "ffmpeg", "title": "ffmpeg", "need": "required", "done": not gone, "tab": None,
             "status": "Installed." if not gone else "Not installed, so videos cannot be cut.",
-            "steps": [] if not gone else [tools.HELP, "PeakCut notices it within a minute, no restart needed."]}
+            "steps": [] if not gone else [tools.HELP, "AI Clipper notices it within a minute, no restart needed."]}
 
 
 def _ai() -> dict:
@@ -37,9 +37,9 @@ def _cookies() -> dict:
     """YouTube sometimes asks downloads to sign in ("confirm you're not a bot", age-restricted streams). Cookies from a
     signed-in browser get past that. They are set only in the .env file, so the page cannot change them."""
     how = ["In a browser signed in to YouTube, install a cookies.txt exporter (for example \"Get cookies.txt LOCALLY\") and export the cookies for youtube.com.",
-           "Save the file as cookies.txt in the PeakCut folder. It is already in .gitignore, so it is never published.",
+           "Save the file as cookies.txt in the AI Clipper folder. It is already in .gitignore, so it is never published.",
            f"Add this line to the {ENV_FILE}:  PEAKCUT_YT_COOKIES_FILE=<full path to cookies.txt>",
-           "Restart PeakCut.",
+           "Restart AI Clipper.",
            "Cookies are a login: never share the file. YouTube expires them after a while; export a new file when downloads start asking to sign in again."]
     item = {"key": "cookies", "title": "YouTube cookies", "need": "recommended", "tab": None}
     if config.YT_COOKIES_FILE:
@@ -81,7 +81,7 @@ def _card() -> dict:
 
 
 def _signin() -> list:
-    """Only when PeakCut is a site other people sign in to (PEAKCUT_ACCOUNTS=1)."""
+    """Only when AI Clipper is a site other people sign in to (PEAKCUT_ACCOUNTS=1)."""
     from . import mailer
     cid, secret = config.google_client()
     mail = mailer.ready()
@@ -89,11 +89,11 @@ def _signin() -> list:
         {"key": "email", "title": "Email for sign-in links", "need": "required", "done": mail, "tab": None,
          "status": "Set up." if mail else "Not set. Sign-in and reset links are only written to the server log.",
          "steps": [] if mail else [f"Add PEAKCUT_SMTP_HOST, PEAKCUT_SMTP_USER, PEAKCUT_MAIL_FROM and PEAKCUT_SMTP_PASSWORD_FILE (a file holding the password) to the {ENV_FILE}.",
-                                   "See .env.example for each one, then restart PeakCut."]},
+                                   "See .env.example for each one, then restart AI Clipper."]},
         {"key": "google", "title": "Sign in with Google", "need": "optional", "done": bool(cid and secret), "tab": None,
          "status": "Set up." if cid and secret else "Not set. People sign in with email instead.",
-         "steps": [] if cid and secret else [f"Add GOOGLE_CLIENT_FILE (the JSON Google lets you download) to the {ENV_FILE}, then restart PeakCut.",
-                                             "Keep that JSON file outside the PeakCut folder, or name it *client_secret*.json so it is never published."]},
+         "steps": [] if cid and secret else [f"Add GOOGLE_CLIENT_FILE (the JSON Google lets you download) to the {ENV_FILE}, then restart AI Clipper.",
+                                             "Keep that JSON file outside the AI Clipper folder, or name it *client_secret*.json so it is never published."]},
     ]
 
 

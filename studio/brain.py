@@ -69,7 +69,7 @@ Rules:
   with ONE emoji that fits what happens in this moment (for example 😂 funny, 💀 a fail or a death, 😱 shock,
   🔥 a clutch play, 😤 rage, 🤯 unbelievable, 👀 suspicious, 🚔 police, 💸 money). The emoji is not one of the 5 words.
 - title: at most 70 characters, for the post.
-- yt_title: the YouTube Shorts title. At most 45 characters (the feed cuts the rest), with the game or the
+- yt_title: the YouTube Shorts title. At most 40 characters (the feed cuts the rest), with the game or the
   streamer's name in the first three words. No hashtags, no emoji spam.
 - ig_line: the first line of the Instagram and TikTok caption, at most 120 characters. Only this line shows
   before "more", and search matches it, so name the game, the streamer and what happens, in plain words.

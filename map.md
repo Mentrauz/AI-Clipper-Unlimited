@@ -1,7 +1,7 @@
-# PeakCut code map
+# AI Clipper code map
 
 A map for people and AI agents: what each file does, and where the important functions live.
-PeakCut is a Python (FastAPI) app that turns YouTube, Twitch and Kick videos and live streams into vertical 9:16 clips with captions.
+AI Clipper is a Python (FastAPI) app that turns YouTube, Twitch and Kick videos and live streams into vertical 9:16 clips with captions.
 
 **Line numbers drift as code changes.** Treat them as a starting point and confirm with a search, e.g.
 `grep -n "^def _run_job" studio/jobs.py`. Route line numbers point at the `@app.` decorator.

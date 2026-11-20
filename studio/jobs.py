@@ -352,9 +352,14 @@ def request_render(jid, cid, changes: dict):
     for k in ("start", "end"):
         if k in changes:
             new[k] = round(float(changes[k]), 2)
-    if "src_offset" in clip:  # live clip: can only move inside the saved piece of stream
+    if "src_offset" in clip and job.get("kind") == "live":  # live clip: can only move inside the saved piece of stream
         new["start"] = max(new["start"], clip["src_offset"])
         new["end"] = min(new["end"], clip["src_end"])
+    elif "src_offset" in clip and (new["start"] < clip["src_offset"] or new["end"] > clip["src_end"]):
+        # moved outside the piece fetched for this clip: drop it so the right stretch is fetched again
+        for k in ("src", "src_offset", "src_end"):
+            new.pop(k, None)
+            clip.pop(k, None)
     if not (math.isfinite(new["start"]) and math.isfinite(new["end"])) or new["start"] < 0:
         raise ValueError("Those times aren't valid.")
     if not 3 <= new["end"] - new["start"] <= 180:
@@ -538,6 +543,8 @@ def _piece_again(job, clip):
     d = Path(job["dir"])
     want = max(0.0, clip["start"] - PAD)
     until = clip["end"] + PAD if not job.get("duration") else min(job["duration"], clip["end"] + PAD)
+    for old in (d / "clips").glob(f"{clip['id']}.src.*"):
+        old.unlink(missing_ok=True)      # the downloader skips a file that already exists, and would hand back the old piece
     try:
         piece = media.download_section(src["url"], d / "clips", f"{clip['id']}.src", want, until,
                                        int(job["options"]["quality"]), exact=True)

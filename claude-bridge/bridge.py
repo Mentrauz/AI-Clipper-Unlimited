@@ -1,4 +1,4 @@
-"""OpenAI-compatible bridge: answers PeakCut's AI requests by running `claude -p` (Claude Code, your subscription)."""
+"""OpenAI-compatible bridge: answers AI Clipper's AI requests by running `claude -p` (Claude Code, your subscription)."""
 import json, os, subprocess, tempfile, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
